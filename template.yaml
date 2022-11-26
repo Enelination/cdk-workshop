@@ -1,0 +1,370 @@
+Resources:
+  MyFunctionServiceRole3C357FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/MyFunction/ServiceRole/Resource
+  MyFunction3BAA72D1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-808364554647-us-east-1
+        S3Key: 3043c0dde653cca0971c3d34a543b0d0cfee40d24d6e1ef910f4945946bdfb4f.zip
+      Role:
+        Fn::GetAtt:
+          - MyFunctionServiceRole3C357FF2
+          - Arn
+      FunctionName: cdk-workshop-function-qa
+      Handler: handler.lambda_handler
+      Runtime: python3.9
+    DependsOn:
+      - MyFunctionServiceRole3C357FF2
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/MyFunction/Resource
+      aws:asset:path: asset.3043c0dde653cca0971c3d34a543b0d0cfee40d24d6e1ef910f4945946bdfb4f
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  MyFunctionCurrentVersion197490AFa3c1aac2bbed264bfcee351f25d6a22d:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: MyFunction3BAA72D1
+      Description: Version deployed on 26-11-2022
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/MyFunction/CurrentVersion/Resource
+  FunctionAliasE9E29399:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: MyFunction3BAA72D1
+      FunctionVersion:
+        Fn::GetAtt:
+          - MyFunctionCurrentVersion197490AFa3c1aac2bbed264bfcee351f25d6a22d
+          - Version
+      Name: live
+    UpdatePolicy:
+      CodeDeployLambdaAliasUpdate:
+        ApplicationName:
+          Ref: CanaryDeploymentApplication7829C99D
+        DeploymentGroupName:
+          Ref: CanaryDeploymentB9B1B96B
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/FunctionAlias/Resource
+  RestAPI1CC12F26:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: RestAPI
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Resource
+  RestAPICloudWatchRole025FE33D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/CloudWatchRole/Resource
+  RestAPIAccountB5481627:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - RestAPICloudWatchRole025FE33D
+          - Arn
+    DependsOn:
+      - RestAPI1CC12F26
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Account
+  RestAPIDeploymentD35A538036873e33725b9a0b65d4f8727f8d4d47:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - RestAPIproxyANYFF0AF03D
+      - RestAPIproxy75878BA9
+      - RestAPIANY46E22CAE
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Deployment/Resource
+  RestAPIDeploymentStageqa2DBDFE7E:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      DeploymentId:
+        Ref: RestAPIDeploymentD35A538036873e33725b9a0b65d4f8727f8d4d47
+      StageName: qa
+    DependsOn:
+      - RestAPIAccountB5481627
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/DeploymentStage.qa/Resource
+  RestAPIproxy75878BA9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - RestAPI1CC12F26
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: RestAPI1CC12F26
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/{proxy+}/Resource
+  RestAPIproxyANYApiPermissioncdkworkshopstackqaRestAPI8C2754D6ANYproxyBF2FABD2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: FunctionAliasE9E29399
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:808364554647:"
+            - Ref: RestAPI1CC12F26
+            - /
+            - Ref: RestAPIDeploymentStageqa2DBDFE7E
+            - /*/*
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/{proxy+}/ANY/ApiPermission.cdkworkshopstackqaRestAPI8C2754D6.ANY..{proxy+}
+  RestAPIproxyANYApiPermissionTestcdkworkshopstackqaRestAPI8C2754D6ANYproxy716467A9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: FunctionAliasE9E29399
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:808364554647:"
+            - Ref: RestAPI1CC12F26
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/{proxy+}/ANY/ApiPermission.Test.cdkworkshopstackqaRestAPI8C2754D6.ANY..{proxy+}
+  RestAPIproxyANYFF0AF03D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: RestAPIproxy75878BA9
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Ref: FunctionAliasE9E29399
+              - /invocations
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/{proxy+}/ANY/Resource
+  RestAPIANYApiPermissioncdkworkshopstackqaRestAPI8C2754D6ANYC9D35D5F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: FunctionAliasE9E29399
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:808364554647:"
+            - Ref: RestAPI1CC12F26
+            - /
+            - Ref: RestAPIDeploymentStageqa2DBDFE7E
+            - /*/
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/ANY/ApiPermission.cdkworkshopstackqaRestAPI8C2754D6.ANY..
+  RestAPIANYApiPermissionTestcdkworkshopstackqaRestAPI8C2754D6ANYFE9A6E62:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: FunctionAliasE9E29399
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:808364554647:"
+            - Ref: RestAPI1CC12F26
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/ANY/ApiPermission.Test.cdkworkshopstackqaRestAPI8C2754D6.ANY..
+  RestAPIANY46E22CAE:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - RestAPI1CC12F26
+          - RootResourceId
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Ref: FunctionAliasE9E29399
+              - /invocations
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/RestAPI/Default/ANY/Resource
+  FunctionFailureAlarm2CD9AF36:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      AlarmDescription: The latest deployment errors > 0
+      AlarmName: cdk-workshop-stack-qa-canary-alarm
+      Dimensions:
+        - Name: FunctionName
+          Value:
+            Ref: MyFunction3BAA72D1
+        - Name: Resource
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: MyFunction3BAA72D1
+                - :live
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/FunctionFailureAlarm/Resource
+  CanaryDeploymentApplication7829C99D:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ComputePlatform: Lambda
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/CanaryDeployment/Application/Resource
+  CanaryDeploymentServiceRole4539DDE5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codedeploy.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSCodeDeployRoleForLambdaLimited
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/CanaryDeployment/ServiceRole/Resource
+  CanaryDeploymentB9B1B96B:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName:
+        Ref: CanaryDeploymentApplication7829C99D
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - CanaryDeploymentServiceRole4539DDE5
+          - Arn
+      AlarmConfiguration:
+        Alarms:
+          - Name:
+              Ref: FunctionFailureAlarm2CD9AF36
+        Enabled: true
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+          - DEPLOYMENT_STOP_ON_ALARM
+      DeploymentConfigName: CodeDeployDefault.LambdaCanary10Percent5Minutes
+      DeploymentStyle:
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        DeploymentType: BLUE_GREEN
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/CanaryDeployment/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/12QTU/DMAyGf8vuaWBMSFw7EFxAVEXiOnmp6ULTJMqHSlXlv5Okazft5MevE/u1H+jjlm43MNiCNV0h+JFOXw5YR6J0mAT0xwbo9Oolc1xJ8vwjV/5GY8/agqXgYJOwQoWm5zYVA+HQ06lWAlMhxUDs7gDWorO0TCHmdO9Zh24PFglo3oLDAUY6vWcrNVpXap4bXLBkTHnpyAtqocYeI0b1KosrtXnqDPGr8oZhHlIZ9TcuyrnxzB/oTqpJ0kyBMKF8M4BjJzqVAkw/7xoh1lSDTR65mL0YeDPKazKrpdaCM1jOeZPe/AlhNUvyhdICXLbp6ad32rtrx4FUYzQq73b0iW7vN7+W88LEy/AeaT3Hfx+bTDbyAQAA
+    Metadata:
+      aws:cdk:path: cdk-workshop-stack-qa/CDKMetadata/Default
+Outputs:
+  RestAPIEndpointB14C3C54:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: RestAPI1CC12F26
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: RestAPIDeploymentStageqa2DBDFE7E
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+
